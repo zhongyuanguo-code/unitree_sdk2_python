@@ -212,7 +212,19 @@ class ChannelFactory(Singleton):
             if networkInterface is None:
                 config = ChannelConfigAutoDetermine
             else:
-                config = ChannelConfigHasInterface.replace('$__IF_NAME__$', networkInterface)
+                # Comma-separated names -> one <NetworkInterface> entry each, so a
+                # single SDK participant can span several links (e.g. the robot NIC
+                # plus the host bus on lo) without a second channel: cyclonedds
+                # allows one domain id per process, so a second channel is not an
+                # option (the tinynav chassis learned this the hard way).
+                entries = ''.join(
+                    '<NetworkInterface name="%s" priority="default" multicast="default"/>'
+                    % name.strip()
+                    for name in networkInterface.split(',') if name.strip())
+                config = ChannelConfigHasInterface.replace(
+                    '$__IF_LIST__$',
+                    entries or '<NetworkInterface autodetermine="true" '
+                               'priority="default" multicast="default"/>')
 
             try:
                 self.__class__.__domain = Domain(id, config)
